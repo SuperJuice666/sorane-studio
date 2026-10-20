@@ -402,6 +402,10 @@ class Job:
                 from .narrate import narrate
 
                 narrate(out / "song", narration)
+            elif narration["provider"] == "edge":
+                from .narrate_edge import narrate
+
+                narrate(out / "song", narration, self.ffmpeg)
             elif narration["provider"] != "none":
                 raise ValueError("Unknown narration provider")
             validate(read(out / "song/song.json"), out / "song")
@@ -416,6 +420,7 @@ class Job:
                 self.ffmpeg,
                 sha(PROJECT / "song_import/media.py"),
                 sha(PROJECT / "song_import/narrate.py"),
+                sha(PROJECT / "song_import/narrate_edge.py"),
             ],
             package,
         )
@@ -620,6 +625,12 @@ def doctor(job):
                 "ready": False,
                 "needed": "Start the local VOICEVOX engine and check speaker",
             }
+    elif config["provider"] == "edge":
+        result = subprocess.run(
+            [job.python, "-c", "import edge_tts, fugashi, numpy, soundfile"],
+            capture_output=True,
+        )
+        checks["narration"] = {"ready": result.returncode == 0, "provider": "edge"}
     else:
         checks["narration"] = {
             "ready": config["provider"] == "none",

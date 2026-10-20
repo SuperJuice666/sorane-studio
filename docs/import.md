@@ -20,7 +20,7 @@ Agent 应自行创建和推进任务，分词、读音和时间标注由任务�
 
 导入工作站使用 FFmpeg、Demucs、SOFA 代码和检查点，见 [模型配置](models.md)。可以用配置中的 vocals 指定已有的等长人声轨来替代分离步骤。日语读音使用本机 VOICEVOX Engine，默认连接 127.0.0.1:50021；选择符合使用范围的声库和 speaker ID。
 
-复制 examples/import-config.json 到 work/import-config.json，填写本机路径。modelPython 留空代表当前解释器，建议使用模型环境解释器的绝对路径。模型路径相对仓库根目录。narration.provider 默认为 voicevox；纯原曲包可设为 none；读音服务报错后，任务保留日志，修复配置后继续。
+复制 examples/import-config.json 到 work/import-config.json，填写本机路径。modelPython 留空代表当前解释器，建议使用模型环境解释器的绝对路径。模型路径相对仓库根目录。narration.provider 默认为 voicevox；也可设为 edge，voice 指定声库（如 ja-JP-NanamiNeural）。Edge 适配需要安装 edge-tts，三档速度独立合成，词时间来自服务返回的 WordBoundary，显示词落在同一服务词内部时按假名位置插值；原始边界与删减静音记录保存在 narration-queries。纯原曲包可设为 none；读音服务报错后，任务保留日志，修复配置后继续。
 
 ## 启动和恢复
 

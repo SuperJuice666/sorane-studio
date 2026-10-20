@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>歌曲导入复核</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 20px;
+      font: 16px/1.6 system-ui;
+      color: #25362f;
+      background: #fafaf8;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    button,
+    select {
+      font: inherit;
+      padding: 8px;
+      border: 1px solid #ccd5cf;
+      border-radius: 5px;
+      background: white;
+    }
+    audio {
+      width: 100%;
+      margin: 16px 0;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #words {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px 0;
+      min-height: 130px;
+    }
+    #words button {
+      border: 0;
+      background: transparent;
+    }
+    #words small {
+      display: block;
+      color: #68776d;
+    }
+    #words .current {
+      background: #d9eae0;
+    }
+    article {
+      border-top: 1px solid #ccd5cf;
+      padding: 16px 0;
+    }
+    article p {
+      margin: 6px 0;
+    }
+    .muted {
+      color: #68776d;
+      font-size: 14px;
+    }
+    pre {
+      white-space: pre-wrap;
+      font-size: 12px;
+    }
+    #message {
+      color: #8b3025;
+    }
+  </style>
+  <h1 id="title">歌曲导入复核</h1>
+  <p class="muted">
+    时间以原速全曲为准。先听完整歌曲，再检查疑点；点击词从起音前 0.4
+    秒播放。这里只展示模型候选，修订保存在 reviewed.json。
+  </p>
+  <div class="toolbar">
+    <select id="source" aria-label="音源">
+      <option value="mix">原曲</option>
+      <option value="vocals">人声</option></select
+    ><select id="rate" aria-label="试听速度">
+      <option>1</option>
+      <option>0.75</option>
+      <option>0.5</option></select
+    ><button id="full">从头播放</button><button id="stop">暂停</button>
+  </div>
+  <audio id="audio" controls preload="metadata"></audio>
+  <div id="words"></div>
+  <p id="line"></p>
+  <p id="message" role="status"></p>
+  <h2>需要检查的位置</h2>
+  <div id="issues"></div>
+  <script type="module">
+    const $ = (id) => document.getElementById(id),
+      audio = $("audio");
+    try {
+      const response = await fetch("review-data.json");
+      if (!response.ok) throw Error("无法读取复核资料");
+      const data = await response.json(),
+        song = data.song,
+        flat = song.lines.flatMap((l) => l.tokens);
+      $("title").textContent = song.title + " · " + song.artist;
+      audio.src = data.mix;
+      let stopAt = null,
+        current = -2,
+        buttons = [];
+      async function play(start, end = null) {
+        audio.pause();
+        stopAt = end;
+        audio.currentTime = start;
+        try {
+          await audio.play();
+        } catch (e) {
+          $("message").textContent = e.message;
+        }
+      }
+      $("full").onclick = () => play(0);
+      $("stop").onclick = () => audio.pause();
+      $("rate").onchange = () => {
+        audio.playbackRate = Number($("rate").value);
+      };
+      $("source").onchange = () => {
+        const time = audio.currentTime,
+          playing = !audio.paused;
+        audio.pause();
+        audio.src = data[$("source").value];
+        audio.addEventListener(
+          "loadedmetadata",
+          () => {
+            audio.currentTime = time;
+            audio.playbackRate = Number($("rate").value);
+            if (playing)
+              audio.play().catch((e) => ($("message").textContent = e.message));
+          },
+          { once: true },
+        );
+      };
+      function frame() {
+        const t = audio.currentTime;
+        if (stopAt !== null && t >= stopAt) {
+          audio.pause();
+          stopAt = null;
+        }
+        const index = song.lines.findIndex((l) => l.start <= t && t < l.end);
+        if (index !== current) {
+          current = index;
+          buttons = [];
+          $("words").replaceChildren();
+          $("line").textContent =
+            index < 0
+              ? "间奏"
+              : `${index + 1} / ${song.lines.length} · ${song.lines[index].section}`;
+          if (index >= 0)
+            for (const token of song.lines[index].tokens) {
+              const button = document.createElement("button"),
+                small = document.createElement("small");
+              button.textContent = token.jp;
+              small.textContent = token.romaji;
+              button.append(small);
+              button.onclick = () =>
+                play(
+                  Math.max(0, token.start - 0.4),
+                  Math.min(song.duration, token.end + 0.4),
+                );
+              $("words").append(button);
+              buttons.push([button, token]);
+            }
+        }
+        for (const [button, token] of buttons)
+          button.classList.toggle("current", t >= token.start && t < token.end);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+      const flagged = data.audit.tokens.filter((t) => t.flags.length);
+      if (!flagged.length)
+        $("issues").textContent = "未发现规则疑点，仍需完整试听和句界检查。";
+      for (const item of flagged) {
+        const row = document.createElement("article"),
+          title = document.createElement("strong"),
+          detail = document.createElement("p"),
+          playButton = document.createElement("button"),
+          evidence = document.createElement("pre"),
+          i = item.index;
+        title.textContent = `词 ${i + 1} · ${item.jp}`;
+        detail.textContent = item.flags.join(" / ");
+        playButton.textContent = "试听前后文";
+        playButton.onclick = () =>
+          play(
+            Math.max(0, (flat[i - 1]?.start ?? item.start) - 0.4),
+            Math.min(song.duration, (flat[i + 1]?.end ?? item.end) + 0.4),
+          );
+        evidence.textContent = JSON.stringify(
+          {
+            chosen: [item.start, item.end],
+            ctc: item.ctc,
+            candidates: item.candidates,
+          },
+          null,
+          2,
+        );
+        row.append(title, detail, playButton, evidence);
+        $("issues").append(row);
+      }
+    } catch (error) {
+      $("message").textContent = error.message;
+    }
+  </script>
+</html>

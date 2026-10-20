@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>歌曲包预览</title>
+  <style>
+    body {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 20px;
+      font: 16px/1.6 system-ui;
+      color: #25362f;
+    }
+    audio {
+      display: block;
+      width: 100%;
+      margin: 20px 0;
+    }
+    button,
+    select {
+      font: inherit;
+      padding: 6px 12px;
+    }
+    #words {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 36px 0;
+    }
+    #words span {
+      padding: 6px;
+    }
+    small {
+      display: block;
+      color: #68776d;
+      text-align: center;
+    }
+    .current {
+      background: #d9eae0;
+    }
+  </style>
+  <h1 id="title">歌曲包预览</h1>
+  <p>音源与标注复核。分块、循环和设备交互需在 Sorane Player 中验收。</p>
+  <select id="line" aria-label="句子"></select>
+  <select id="source" aria-label="音源">
+    <option value="song">原曲</option>
+    <option value="voice">读音</option>
+  </select>
+  <select id="rate" aria-label="速度">
+    <option value="1">1×</option>
+    <option value="0.75">0.75×</option>
+    <option value="0.5">0.5×</option>
+  </select>
+  <button id="play">播放本句</button>
+  <audio id="audio" controls></audio>
+  <div id="words" lang="ja"></div>
+  <p id="message" role="status"></p>
+  <script type="module">
+    const $ = (id) => document.getElementById(id),
+      audio = $("audio");
+    try {
+      const response = await fetch("song/song.json");
+      if (!response.ok) throw Error("无法读取歌曲包");
+      const song = await response.json();
+      $("title").textContent = song.title + " · " + song.artist;
+      for (const [i, line] of song.lines.entries()) {
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = `${i + 1}. ${line.jp}`;
+        $("line").append(option);
+      }
+      let marks = [],
+        stop = null,
+        generation = 0;
+      function select() {
+        generation++;
+        audio.pause();
+        stop = null;
+        const line = song.lines[Number($("line").value)],
+          rate = $("rate").value;
+        const voice = $("source").value === "voice";
+        const narration =
+          line.narration?.[
+            { 1: "normal", 0.75: "slow", 0.5: "verySlow" }[rate]
+          ];
+        $("message").textContent = voice && !narration ? "该档读音待生成" : "";
+        $("play").disabled = voice && !narration;
+        const source = voice ? narration?.src : song.audio[rate].src;
+        audio.removeAttribute("src");
+        if (source) audio.src = "song/" + source;
+        marks = line.tokens.map((token, i) => ({
+          ...token,
+          start: voice
+            ? narration?.tokens[i].start
+            : token.start / Number(rate),
+          end: voice ? narration?.tokens[i].end : token.end / Number(rate),
+        }));
+        $("words").replaceChildren(
+          ...marks.map((token) => {
+            const span = document.createElement("span"),
+              small = document.createElement("small");
+            span.textContent = token.jp;
+            small.textContent = token.romaji;
+            span.append(small);
+            return span;
+          }),
+        );
+      }
+      for (const id of ["line", "rate", "source"]) $(id).onchange = select;
+      $("play").onclick = async () => {
+        const request = ++generation;
+        const line = song.lines[Number($("line").value)],
+          rate = Number($("rate").value);
+        stop =
+          $("source").value === "song"
+            ? (line.clipEnd ?? line.end) / rate
+            : null;
+        audio.currentTime =
+          $("source").value === "song"
+            ? (line.clipStart ?? line.start) / rate
+            : 0;
+        try {
+          await audio.play();
+          if (generation !== request) audio.pause();
+        } catch (error) {
+          if (generation === request) $("message").textContent = error.message;
+        }
+      };
+      function frame() {
+        const time = audio.currentTime;
+        if (stop !== null && time >= stop) {
+          audio.pause();
+          stop = null;
+        }
+        [...$("words").children].forEach((span, i) =>
+          span.classList.toggle(
+            "current",
+            time >= marks[i].start && time < marks[i].end,
+          ),
+        );
+        requestAnimationFrame(frame);
+      }
+      select();
+      requestAnimationFrame(frame);
+    } catch (error) {
+      $("message").textContent = error.message;
+    }
+  </script>
+</html>

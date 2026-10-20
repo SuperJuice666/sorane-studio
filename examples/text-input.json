@@ -1,0 +1,11 @@
+{
+  "title": "音の練習",
+  "artist": "Demo",
+  "sources": [
+    {
+      "url": "local:original-example",
+      "title": "Original example",
+      "text": "朝の光\n風が吹く\n空を見る\n今日も歩こう"
+    }
+  ]
+}

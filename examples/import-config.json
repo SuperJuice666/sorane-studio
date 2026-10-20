@@ -1,0 +1,13 @@
+{
+  "modelPython": "",
+  "ffmpeg": "ffmpeg",
+  "sofaSource": "models/SOFA",
+  "sofaCheckpoint": "models/sofa-ja/model.ckpt",
+  "maxAlignmentRuns": 3,
+  "narration": {
+    "provider": "voicevox",
+    "url": "http://127.0.0.1:50021",
+    "speaker": 3
+  },
+  "agentCommand": []
+}

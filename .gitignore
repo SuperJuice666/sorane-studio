@@ -1,0 +1,14 @@
+/node_modules/
+/build/
+/data/
+/work/
+/models/
+/.venv*/
+.env
+.env.*
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+Thumbs.db
+.ruff_cache/

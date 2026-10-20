@@ -1,0 +1,22 @@
+[project]
+name = "sorane-studio"
+version = "0.1.0"
+description = "Prepare Sorane song packages with lyric verification, forced alignment, and pronunciation audio."
+requires-python = ">=3.12"
+authors = [{ name = "SuperJuice666" }]
+license = "MIT"
+
+[project.urls]
+Repository = "https://github.com/SuperJuice666/sorane-studio"
+Issues = "https://github.com/SuperJuice666/sorane-studio/issues"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+include = ["song_import/**/*.py", "tests/**/*.py", "pyproject.toml"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "double"

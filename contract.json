@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "owner": "sorane-player",
+  "formatRevision": "1.0.0",
+  "validator": "song_import/schema.py",
+  "upstreamValidator": "lyric_player/schema.py",
+  "validatorSha256": "7ddedc279577bd033180660fb87599a295f31da4c5d758601269d93f93a6d64c",
+  "specSha256": "8fb6e21ecd349664ae114bca5907d559f223278c19c2d0d202afe6606881f955",
+  "upstreamCommit": "28e92363e08fb5909d9b5f8566cde9b26baa382e",
+  "repository": "https://github.com/SuperJuice666/sorane-player"
+}
